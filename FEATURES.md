@@ -54,3 +54,7 @@
 - Deferred or rejected items / reasons:
 - Important flows / states / data decisions:
 - Durable feature decisions:
+
+## 実装方針
+
+日付単位の特別営業時間管理。00／30の分選択、休業日、複数時間帯、翌日営業、確認後保存、保存後読取検証、他画面変更検知を実装。API更新対象はspecialHoursのみ。トークンはメモリ保持。実接続検証はOAuthクライアント設定待ち。

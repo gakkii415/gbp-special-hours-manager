@@ -1,4 +1,24 @@
 <!doctype html>
-<html lang="ja"><meta charset="utf-8"><title>準備中</title><body><main>準備中</main>
-<!-- app-version:start --><small id="app-version">v1</small><!-- app-version:end -->
+<html lang="ja"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>特別営業時間 | Mea Tattoo Studio</title>
+<meta name="description" content="特別営業時間を日付から管理するアプリ"><meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%2317191c'/%3E%3Cpath d='M8 23V10l8 8 8-8v13' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css"><script src="https://accounts.google.com/gsi/client" async defer></script><script type="module" src="app.js"></script>
+</head><body>
+<header><div class="brand">Mea <span>Tattoo Studio</span></div><div class="account"><span id="connection">未接続</span><button id="connect">Googleに接続</button><button id="disconnect" hidden>接続解除</button></div></header>
+<main><div class="heading"><div><p class="eyebrow">GOOGLE BUSINESS PROFILE</p><h1>特別営業時間</h1></div><span class="timezone">日本時間</span></div>
+<p id="notice" role="status" aria-live="polite">Googleに接続すると、登録済みの営業時間を読み込みます。</p>
+<details id="setup"><summary>初回の接続設定</summary><div class="setup-body">
+<p>承認済みのGoogle Cloudプロジェクトで、OAuthクライアント（ウェブアプリケーション）を作成してください。</p>
+<ol><li><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Google Cloudのクライアント設定</a>を開く。</li><li>「承認済みのJavaScript生成元」に <code id="origin"></code> を追加する。リダイレクトURIは不要です。</li><li>アプリがテスト中の場合は、GBPを管理するGoogleアカウントをテストユーザーへ追加する。</li><li>クライアントIDを下に貼り付けて保存する。</li></ol>
+<label for="client-id">OAuthクライアントID</label><input id="client-id" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false"><button id="save-config">接続設定を保存</button>
+<p class="muted">クライアントIDだけをこの端末に保存します。パスワードやクライアントシークレットの入力は不要です。</p></div></details>
+<div class="workspace"><section class="editor" aria-labelledby="editor-title">
+<h2 id="editor-title">日付を選んで編集</h2><label for="date">日付</label><input type="date" id="date" required><p id="day-state" class="day-state">未読み込み</p>
+<div class="mode" role="group" aria-label="営業状況"><button id="open-day" aria-pressed="true">営業時間を指定</button><button id="closed-day" aria-pressed="false">休業</button></div>
+<div id="intervals"></div><button id="add-interval" class="quiet">＋ 時間帯を追加</button><p class="muted" id="time-help">分は00／30から選択。日をまたぐ場合は「翌日」を選んでください。</p>
+<div class="actions"><button id="save" class="primary" disabled>Googleに保存</button><button id="delete" class="danger" disabled>特別営業時間を削除</button></div><p class="muted">削除すると、この日には通常営業時間が適用されます。</p></section>
+<section class="schedule" aria-labelledby="schedule-title"><div class="section-heading"><h2 id="schedule-title">登録済みの日付</h2><button id="refresh" disabled>再読み込み</button></div><div id="schedule-list"><p class="empty">接続後に表示されます。</p></div></section></div>
+<footer><!-- app-version:start --><small id="app-version">v2</small><!-- app-version:end --></footer></main>
+<dialog id="confirm-dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><p class="muted">Googleの公開情報に反映されます。</p><div class="actions"><button id="cancel-confirm">戻る</button><button id="apply-confirm" class="primary">確定する</button></div></dialog>
 </body></html>

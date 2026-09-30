@@ -57,3 +57,7 @@
 - Deferred or rejected areas / reasons:
 - Sources / freshness / maintenance:
 - Durable content decisions:
+
+## 文言方針
+
+日本語で操作を表示し、時刻はam／pm、日本時間。削除は通常営業時間への復帰と明示。初回OAuth設定を画面内に配置し、接続状態・失敗・保存結果を通知する。外部Google API仕様を正本とする。

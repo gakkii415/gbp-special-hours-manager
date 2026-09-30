@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {makePeriods,replaceDay,nextDate,signature,parseDate} from '../hours.js';
+const row=(oh,om,ch,cm,nextDay=false)=>({openTime:{hours:oh,minutes:om},closeTime:{hours:ch,minutes:cm},nextDay});
+test('00/30以外と無効な日付を拒否',()=>{assert.throws(()=>makePeriods('2026-10-01',false,[row(11,15,20,0)]));assert.throws(()=>parseDate('2026-02-30'));});
+test('夜をまたぐ時間と年末',()=>{const ps=makePeriods('2026-12-31',false,[row(21,0,2,30,true)]);assert.deepEqual(ps[0].endDate,{year:2027,month:1,day:1});assert.throws(()=>makePeriods('2026-10-01',false,[row(11,0,11,0,true)]));assert.throws(()=>makePeriods('2026-10-01',false,[row(20,0,12,0,true)]));});
+test('他の日付は保持し選んだ日のみ変更・削除',()=>{const first=makePeriods('2026-10-01',false,[row(11,0,20,0)]);const second=makePeriods('2026-10-02',true,[]);const changed=replaceDay([...first,...second],'2026-10-01',makePeriods('2026-10-01',false,[row(12,30,18,0)]));assert.deepEqual(changed[1],second[0]);assert.deepEqual(replaceDay(changed,'2026-10-01',[]),second);assert.deepEqual(replaceDay(first,'2026-10-01',[]),[]);});
+test('複数時間帯・隣日との重複',()=>{assert.throws(()=>replaceDay([], '2026-10-01',makePeriods('2026-10-01',false,[row(11,0,18,0),row(17,30,20,0)])));const night=makePeriods('2026-10-01',false,[row(21,0,2,0,true)]);assert.throws(()=>replaceDay(night,'2026-10-02',makePeriods('2026-10-02',true,[])));assert.equal(replaceDay([], '2026-10-01',makePeriods('2026-10-01',false,[row(11,0,14,0),row(14,0,20,0)])).length,2);});
+test('Googleの省略値・並び順に影響されない変更検知',()=>{const p=makePeriods('2026-10-01',false,[row(11,0,20,0)]);const omitted=structuredClone(p);delete omitted[0].openTime.minutes;delete omitted[0].closed;assert.equal(signature(p),signature(omitted));assert.deepEqual(nextDate('2028-02-28'),{year:2028,month:2,day:29});});
