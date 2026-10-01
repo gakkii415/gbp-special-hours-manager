@@ -1,45 +1,40 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,weeklyClosedDays} from './hours.js';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe} from './hours.js';
 const $=id=>document.getElementById(id);
-let periods=[],loaded=false,busy=false,closed=false,pending=null,filter='all',regularPeriods=[];
+let periods=[],loaded=false,busy=false,closed=false,pending=null;
 const native=!!window.google?.script?.run;
-function notice(text,kind='info'){$('notice').textContent=text;$('notice').dataset.kind=kind;}
-function controls(){const ready=native&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!native||busy;$('connect').hidden=native;$('new-date').disabled=!ready;document.querySelectorAll('#schedule-filters button').forEach(el=>el.disabled=!ready);document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!native;});}
+function notice(text,kind='info'){$('notice').textContent=text;$('notice').hidden=!text;$('notice').dataset.kind=kind;}
+function controls(){const ready=native&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!native||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!native;});}
 function rpc(name,arg){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(Error(e?.message||'通信に失敗しました。再読み込みしてください。')))[name](arg);});}
 async function read(){return rpc('getSpecialHours');}
 function rowsForDay(){return periods.filter(p=>dateKey(p.startDate)===$('date').value);}
-function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;$('time-help').hidden=closed;}
+function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;}
 function picker(label,value,options){const select=document.createElement('select');select.setAttribute('aria-label',label);for(const [v,text] of options){const opt=new Option(text,String(v));select.add(opt);}select.value=String(value);if(select.selectedIndex<0)select.selectedIndex=-1;return select;}
 function addRow(period){const index=$('intervals').children.length+1;const row=document.createElement('div');row.className='interval';const head=document.createElement('div');head.className='interval-head';const title=document.createElement('span');title.textContent='時間帯 '+index;const remove=document.createElement('button');remove.textContent='除く';remove.setAttribute('aria-label','この時間帯を除く');remove.onclick=()=>{row.remove();controls();};head.append(title,remove);row.append(head);const times=document.createElement('div');times.className='time-row';for(const which of ['open','close']){const block=document.createElement('div');const label=document.createElement('label');label.textContent=which==='open'?'開始':'終了';block.append(label);const current=period?.[which+'Time']||{hours:which==='open'?11:20,minutes:0};const wrap=document.createElement('div');wrap.className='time-picker';const hour=picker(`${index} ${label.textContent} 時`,current.hours===24?0:current.hours||0,Array.from({length:24},(_,h)=>[h,`${h%12||12} ${h<12?'am':'pm'}`]));hour.className=which+'-hour';const minute=picker(`${index} ${label.textContent} 分`,current.minutes||0,[[0,'00'],[30,'30']]);minute.className=which+'-minute';if(minute.selectedIndex<0){minute.add(new Option('選択', '',true,true));}wrap.append(hour,document.createTextNode(':'),minute);block.append(wrap);if(which==='close'){const day=picker(`${index} 終了日`,period&&(period.closeTime?.hours===24||period.endDate&&dateKey(period.endDate)!==dateKey(period.startDate))?1:0,[[0,'当日'],[1,'翌日']]);day.className='end-day';block.append(day);}times.append(block);}row.append(times);$('intervals').append(row);controls();}
-function loadDay(){const selected=rowsForDay();$('day-state').textContent=!loaded?'未読み込み':selected.length?'登録済み：'+selected.map(describe).join(' / '):'特別営業時間の登録なし';mode(selected.some(p=>p.closed));$('intervals').replaceChildren();const open=selected.filter(p=>!p.closed);if(open.length)open.forEach(addRow);else addRow();renderList();controls();}
+function loadDay(){const selected=rowsForDay();$('day-state').textContent=!loaded?'未読み込み':selected.length?'登録済み':'未登録';mode(selected.some(p=>p.closed));$('intervals').replaceChildren();const open=selected.filter(p=>!p.closed);if(open.length)open.forEach(addRow);else addRow();renderList();controls();}
 function editDate(date){$('date').value=date;loadDay();document.querySelector('.editor').scrollIntoView({block:'start',behavior:'auto'});$('date').focus({preventScroll:true});}
 function renderList(){
  if(!loaded)return;
  const groups=new Map();for(const p of periods){const d=dateKey(p.startDate);if(!groups.has(d))groups.set(d,[]);groups.get(d).push(p);}
- const entries=[...groups].sort(([a],[b])=>a.localeCompare(b));const closedCount=entries.filter(([,ps])=>ps.some(p=>p.closed)).length;
- $('schedule-summary').textContent=`登録 ${entries.length}日 · 休業 ${closedCount}日 · 特別営業 ${entries.length-closedCount}日`;
- document.querySelectorAll('#schedule-filters button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filter===filter)));
- const names={SUNDAY:'日曜日',MONDAY:'月曜日',TUESDAY:'火曜日',WEDNESDAY:'水曜日',THURSDAY:'木曜日',FRIDAY:'金曜日',SATURDAY:'土曜日'};
- const weekly=weeklyClosedDays(regularPeriods);$('regular-closed').textContent=weekly===null?'通常営業時間：未設定':'毎週の休業曜日：'+(weekly.length?weekly.map(d=>names[d]).join('・'):'なし');
- const list=$('schedule-list');list.replaceChildren();let month='',shown=0;
+ const entries=[...groups].sort(([a],[b])=>a.localeCompare(b)); const list=$('schedule-list');list.replaceChildren();let month='',shown=0;
  for(const [date,ps] of entries){
-  const isClosed=ps.some(p=>p.closed);if(filter==='closed'&&!isClosed||filter==='open'&&isClosed)continue;shown++;
+  const isClosed=ps.some(p=>p.closed);shown++;
   if(month!==date.slice(0,7)){month=date.slice(0,7);const title=document.createElement('h3');title.className='schedule-month';title.textContent=month.slice(0,4)+'年'+Number(month.slice(5))+'月';list.append(title);}
   const b=document.createElement('button');b.className='schedule-day';b.dataset.kind=isClosed?'closed':'open';if(date===$('date').value)b.setAttribute('aria-current','date');
   const title=document.createElement('strong');title.textContent=displayDate(date);const kind=document.createElement('span');kind.className='schedule-kind';kind.textContent=isClosed?'休業':'特別営業';b.append(title,kind);
   if(!isClosed){const times=document.createElement('span');times.textContent=ps.map(describe).join(' / ');b.append(times);}
   b.onclick=()=>editDate(date);list.append(b);
  }
- if(!shown){const p=document.createElement('p');p.className='empty';p.textContent=entries.length?'この条件の登録はありません。':'Googleに登録された特別営業時間・休業日はありません。';list.append(p);}
+ if(!shown){const p=document.createElement('p');p.className='empty';p.textContent='登録はありません。';list.append(p);}
 }
 function displayDate(date){const d=parseDate(date);return new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(Date.UTC(d.year,d.month-1,d.day,3)))+` · ${d.year}`;}
-async function refresh(){busy=true;controls();notice('Googleから読み込み中…');$('schedule-list').setAttribute('aria-busy','true');try{const data=await read();periods=data.periods||[];regularPeriods=data.regularPeriods||[];loaded=true;loadDay();notice('登録済みの特別営業時間を読み込みました。');}catch(e){notice(e.message,'error');if(!loaded){$('schedule-summary').textContent='登録情報の取得に失敗しました。';$('schedule-list').replaceChildren();const p=document.createElement('p');p.className='empty';p.textContent='「再読み込み」でGoogleの登録情報を取得してください。';$('schedule-list').append(p);$('regular-closed').textContent='通常の休業曜日：未取得';}}finally{busy=false;$('schedule-list').setAttribute('aria-busy','false');controls();}}
+async function refresh(){busy=true;controls();notice('Googleから読み込み中…');$('schedule-list').setAttribute('aria-busy','true');try{const data=await read();periods=data.periods||[];loaded=true;loadDay();notice('');}catch(e){notice(e.message,'error');if(!loaded){$('schedule-list').replaceChildren();const p=document.createElement('p');p.className='empty';p.textContent='「再読み込み」でGoogleの登録情報を取得してください。';$('schedule-list').append(p);}}finally{busy=false;$('schedule-list').setAttribute('aria-busy','false');controls();}}
 function draft(){const rows=[...$('intervals').children].map(row=>({openTime:{hours:Number(row.querySelector('.open-hour').value),minutes:Number(row.querySelector('.open-minute').value)},closeTime:{hours:Number(row.querySelector('.close-hour').value),minutes:Number(row.querySelector('.close-minute').value)},nextDay:row.querySelector('.end-day').value==='1'}));if(!closed&&[...document.querySelectorAll('#intervals select')].some(s=>s.value===''))throw Error('時刻の分は00または30を選んでください。');return makePeriods($('date').value,closed,rows);}
 function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-text').textContent=displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
-async function apply(){const change=pending;if(!change||busy||!loaded||!native)return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];regularPeriods=verified.regularPeriods||[];loadDay();notice('Googleへの保存を確認しました。検索・マップへの表示には時間がかかる場合があります。','success');}catch(e){notice(e.message,'error');}finally{busy=false;controls();}}
+async function apply(){const change=pending;if(!change||busy||!loaded||!native)return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){notice(e.message,'error');}finally{busy=false;controls();}}
 const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=t=>parts.find(p=>p.type===t).value;$('date').value=`${part('year')}-${part('month')}-${part('day')}`;loadDay();
 async function launch(){try{const response=await fetch('launch.json',{cache:'no-store'});if(!response.ok)throw Error();const {url}=await response.json();if(!/^https:\/\/script\.google\.com\/macros\/s\/AKfy[A-Za-z0-9_-]+\/exec$/.test(url||''))throw Error();location.replace(url);}catch{notice('管理画面の公開情報を読み込めませんでした。再読み込みしてください。','error');}}
 $('connect').onclick=launch;
-if(native){$('connection').textContent='GASに接続';refresh();}else{notice('管理画面へ移動します。Googleアカウントでログインしてください。');launch();}
+if(native){refresh();}else{notice('管理画面を開きます…');launch();}
 $('date').onchange=loadDay;$('open-day').onclick=()=>mode(false);$('closed-day').onclick=()=>mode(true);$('add-interval').onclick=()=>addRow();$('refresh').onclick=refresh;$('save').onclick=()=>confirmChange(false);$('delete').onclick=()=>confirmChange(true);$('cancel-confirm').onclick=()=>{$('confirm-dialog').close();pending=null;};$('confirm-dialog').addEventListener('cancel',()=>{pending=null;});$('apply-confirm').onclick=apply;
 
 // Agent navigation uses the same selected date and editor as the visible UI.
@@ -51,4 +46,4 @@ if(document.modelContext?.registerTool){
   window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
 }
 
-document.querySelectorAll('#schedule-filters button').forEach(button=>button.onclick=()=>{filter=button.dataset.filter;renderList();controls();});$('new-date').onclick=()=>{editDate($('date').value);};
+
