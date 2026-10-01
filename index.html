@@ -5,16 +5,19 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%2317191c'/%3E%3Cpath d='M8 23V10l8 8 8-8v13' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css"><script type="module" src="app.js"></script>
 </head><body>
-<header><div class="brand">Mea <span>Tattoo Studio</span></div><button id="connect">管理画面を開く</button></header>
-<main><div class="heading"><h1>特別営業時間</h1></div>
-<p id="notice" role="status" aria-live="polite">登録済みの営業時間を読み込みます。</p>
-<div class="workspace"><section class="schedule" aria-labelledby="schedule-title"><div class="section-heading"><h2 id="schedule-title">登録済み</h2><button id="refresh" disabled>再読み込み</button></div>
-<div id="schedule-list"><p class="empty">接続後に表示されます。</p></div></section><section class="editor" aria-labelledby="editor-title">
-<h2 id="editor-title">追加・変更</h2><label for="date">日付</label><input type="date" id="date" required><p id="day-state" class="day-state">未読み込み</p>
+<header><h1>特別営業時間</h1><button id="connect">管理画面を開く</button><button id="refresh" disabled aria-label="Googleから再読み込み">↻</button></header>
+<main>
+<p id="notice" role="status" aria-live="polite">読み込み中…</p>
+<div class="workspace"><section class="schedule" aria-label="特別営業時間カレンダー">
+<div class="month-nav"><button id="prev-month" aria-label="前の月">‹</button><h2 id="calendar-month" aria-live="polite"></h2><button id="today">今日</button><button id="next-month" aria-label="次の月">›</button></div>
+<div class="weekdays" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+<div id="schedule-list" class="calendar" aria-label="日付を選択"></div>
+
+</section><section class="editor" aria-label="選択日の編集">
+<div class="date-row"><label for="date">日付</label><input type="date" id="date" required><p id="day-state">未読み込み</p></div>
 <div class="mode" role="group" aria-label="営業状況"><button id="open-day" aria-pressed="true">営業時間</button><button id="closed-day" aria-pressed="false">休業</button></div>
-<div id="intervals"></div><button id="add-interval" class="quiet">＋ 時間帯を追加</button>
-<div class="actions"><button id="save" class="primary" disabled>保存</button><button id="delete" class="danger" disabled>削除</button></div></section>
-</div>
-<footer><!-- app-version:start --><small id="app-version">v7</small><!-- app-version:end --></footer></main>
+<div id="intervals"></div><button id="add-interval" class="quiet">＋ 時間帯</button>
+<div class="actions"><button id="delete" class="danger" disabled>削除</button><button id="save" class="primary" disabled>保存</button></div></section></div>
+<footer><!-- app-version:start --><small id="app-version">v8</small><!-- app-version:end --></footer></main>
 <dialog id="confirm-dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><div class="actions"><button id="cancel-confirm">戻る</button><button id="apply-confirm" class="primary">確定する</button></div></dialog>
 </body></html>
