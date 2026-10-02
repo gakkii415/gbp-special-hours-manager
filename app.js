@@ -5,7 +5,15 @@ let viewMonth='',todayDate='';
 const native=!!window.google?.script?.run;
 function notice(text,kind='info'){$('notice').textContent=text;$('notice').hidden=!text;$('notice').dataset.kind=kind;}
 function controls(){const ready=native&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!native||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day,.month-nav button').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!native;});}
-function rpc(name,arg){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(Error(e?.message||'通信に失敗しました。再読み込みしてください。')))[name](arg);});}
+function rpcError(value,operation){
+ const message=String(value?.message||'').replace(/^(?:Error:\s*)+/,'');
+ if(/Google API HTTP (401|403)/.test(message))return Error('Googleの認証を確認して、再読み込みしてください。');
+ if(/Google API HTTP (429|500|502|503|504)/.test(message))return Error(operation==='saveSpecialHours'?'保存結果を確認できません。再読み込みして登録内容を確認してください。':'Googleが一時的に応答できません。少し待って再試行してください。');
+ if(operation==='saveSpecialHours'&&/通信|タイムアウト|接続|ネットワーク/.test(message))return Error('保存結果を確認できません。再読み込みして登録内容を確認してください。');
+ if(/^[^\n<>{}]{1,180}$/.test(message)&&/[ぁ-んァ-ヶ一-龯]/.test(message)&&!/https?:|Bearer|token|stack|Error:/i.test(message))return Error(message);
+ return Error(operation==='saveSpecialHours'?'保存結果を確認できません。再読み込みして登録内容を確認してください。':'通信を確認して、再読み込みしてください。');
+}
+function rpc(name,arg){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(rpcError(e,name)))[name](arg);});}
 async function read(){return rpc('getSpecialHours');}
 function rowsForDay(){return periods.filter(p=>dateKey(p.startDate)===$('date').value);}
 function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;}
@@ -55,7 +63,7 @@ function draft(){
  return makePeriods($('date').value,closed,rows);
 }
 function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-text').textContent=displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
-async function apply(){const change=pending;if(!change||busy||!loaded||!native)return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){notice(e.message,'error');}finally{busy=false;controls();}}
+async function apply(){const change=pending;if(!change||busy||!loaded||!native)return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){if(/保存結果|保存後の登録/.test(e.message)){loaded=false;$('day-state').textContent='要再読込';}notice(e.message,'error');}finally{busy=false;controls();}}
 const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=t=>parts.find(p=>p.type===t).value;$('date').value=`${part('year')}-${part('month')}-${part('day')}`;todayDate=$('date').value;viewMonth=todayDate.slice(0,7);loadDay();
 async function launch(){try{const response=await fetch('launch.json',{cache:'no-store'});if(!response.ok)throw Error();const {url}=await response.json();if(!/^https:\/\/script\.google\.com\/macros\/s\/AKfy[A-Za-z0-9_-]+\/exec$/.test(url||''))throw Error();location.replace(url);}catch{notice('管理画面の公開情報を読み込めませんでした。再読み込みしてください。','error');}}
 $('connect').onclick=launch;
