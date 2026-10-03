@@ -23,7 +23,7 @@ function addRow(period){
  const times=document.createElement('div');times.className='time-row';
  for(const which of ['open','close']){
   const block=document.createElement('label');block.textContent=which==='open'?'開始':'終了';
-  const t=period?.[which+'Time']||{hours:which==='open'?11:20,minutes:0};
+  const t=period?.[which+'Time']||{hours:which==='open'?10:22,minutes:0};
   const value=(t.hours===24?0:t.hours||0)*60+(t.minutes||0);
   const select=picker(`${index} ${block.textContent}`,value,Array.from({length:48},(_,n)=>[n*30,clock({hours:Math.floor(n/2),minutes:n%2*30})]));
   select.className=which+'-time';if(select.selectedIndex<0)select.add(new Option('時刻を選択','',true,true));
