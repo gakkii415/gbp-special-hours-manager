@@ -1,0 +1,33 @@
+name: Verify
+
+on:
+  push:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare branch
+        shell: bash
+        run: |
+          git checkout -B "$GITHUB_REF_NAME" "$GITHUB_SHA"
+          git fetch origin main --no-tags
+      - name: Test
+        run: npm test
+      - name: Mandatory checks
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            BASE="$(git rev-parse HEAD^)"
+          else
+            BASE="$(git merge-base origin/main HEAD)"
+          fi
+          python3 .github/mandatory.py --base "$BASE" --fix
+          git diff --exit-code
+          python3 .github/mandatory.py --base "$BASE"
