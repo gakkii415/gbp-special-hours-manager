@@ -1,10 +1,15 @@
 import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe} from './hours.js';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore} from './stores.js';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
-let viewMonth='',todayDate='';
+let viewMonth='',todayDate='',activeStoreId=storeIdFromSearch(location.search);
 const native=!!window.google?.script?.run;
+const backendStoreId=native&&(window.__GBP_BACKEND_STORE_ID__||DEFAULT_STORE_ID);
+function activeStore(){return getStore(activeStoreId);}
+function backendReady(){return native&&activeStoreId===backendStoreId;}
 function notice(text,kind='info'){$('notice').textContent=text;$('notice').hidden=!text;$('notice').dataset.kind=kind;}
-function controls(){const ready=native&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!native||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day,.month-nav button').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!native;});}
+function updateStoreTabs(){for(const button of document.querySelectorAll('.store-tab'))button.setAttribute('aria-selected',String(button.dataset.store===activeStoreId));document.title=`特別営業時間 | ${activeStore().name}`;}
+function controls(){const ready=backendReady()&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!backendReady()||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day,.month-nav button').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!backendReady();});}
 function rpcError(value,operation){
  const message=String(value?.message||'').replace(/^(?:Error:\s*)+/,'');
  if(/Google API HTTP (401|403)/.test(message))return Error('Googleの認証を確認して、再読み込みしてください。');
@@ -13,7 +18,7 @@ function rpcError(value,operation){
  if(/^[^\n<>{}]{1,180}$/.test(message)&&/[ぁ-んァ-ヶ一-龯]/.test(message)&&!/https?:|Bearer|token|stack|Error:/i.test(message))return Error(message);
  return Error(operation==='saveSpecialHours'?'保存結果を確認できません。再読み込みして登録内容を確認してください。':'通信を確認して、再読み込みしてください。');
 }
-function rpc(name,arg){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(rpcError(e,name)))[name](arg);});}
+function rpc(name,arg){return new Promise((resolve,reject)=>{if(!backendReady())return reject(Error('選択中の店舗には接続されていません。'));google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(rpcError(e,name)))[name](arg);});}
 async function read(){return rpc('getSpecialHours');}
 function rowsForDay(){return periods.filter(p=>dateKey(p.startDate)===$('date').value);}
 function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;}
@@ -34,7 +39,7 @@ function addRow(period){
  $('intervals').append(row);controls();
 }
 function loadDay(){
- const selected=rowsForDay();$('day-state').textContent=!loaded?'未読込':selected.length?'登録済み':'未登録';
+ const selected=rowsForDay();$('day-state').textContent=!backendReady()?'接続待ち':!loaded?'未読込':selected.length?'登録済み':'未登録';
  mode(selected.some(p=>p.closed));$('intervals').replaceChildren();const open=selected.filter(p=>!p.closed);if(open.length)open.forEach(addRow);else addRow();renderList();controls();
 }
 function editDate(date){notice('');$('date').value=date;viewMonth=date.slice(0,7);loadDay();}
@@ -47,7 +52,7 @@ function renderList(){
  for(let day=1;day<=days;day++){
   const date=month+'-'+String(day).padStart(2,'0'),ps=periods.filter(p=>dateKey(p.startDate)===date),kind=ps.length?(ps.some(p=>p.closed)?'closed':'open'):'';
   const b=document.createElement('button');b.className='schedule-day';b.dataset.date=date;b.dataset.kind=kind;
-  b.setAttribute('aria-label',displayDate(date)+' '+(!loaded?'未読み込み':kind==='closed'?'休業':kind==='open'?ps.map(describe).join(' / '):'通常営業時間'));
+  b.setAttribute('aria-label',displayDate(date)+' '+(!backendReady()?'接続待ち':!loaded?'未読み込み':kind==='closed'?'休業':kind==='open'?ps.map(describe).join(' / '):'通常営業時間'));
   if(date===$('date').value)b.setAttribute('aria-pressed','true');else b.setAttribute('aria-pressed','false');
   if(date===todayDate)b.setAttribute('aria-current','date');
   const num=document.createElement('span');num.textContent=day;const marker=document.createElement('small');marker.textContent=kind==='closed'?'休業':kind==='open'?'特別営業':'';b.append(num,marker);b.onclick=()=>editDate(date);list.append(b);
@@ -55,7 +60,7 @@ function renderList(){
 }
 function changeMonth(delta){const [y,m]=viewMonth.split('-').map(Number),d=new Date(Date.UTC(y,m-1+delta,1));if(d.getUTCFullYear()<2000||d.getUTCFullYear()>9999)return;editDate(dateKey({year:d.getUTCFullYear(),month:d.getUTCMonth()+1,day:1}));}
 function displayDate(date){const d=parseDate(date);return new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(Date.UTC(d.year,d.month-1,d.day,3)))+` · ${d.year}`;}
-async function refresh(){busy=true;controls();notice('Googleから読み込み中…');$('schedule-list').setAttribute('aria-busy','true');try{const data=await read();periods=data.periods||[];loaded=true;loadDay();notice('');}catch(e){notice(e.message,'error');if(!loaded){$('schedule-list').replaceChildren();const p=document.createElement('p');p.className='empty';p.textContent='「再読み込み」でGoogleの登録情報を取得してください。';$('schedule-list').append(p);}}finally{busy=false;$('schedule-list').setAttribute('aria-busy','false');controls();}}
+async function refresh(){if(!backendReady())return showPendingStore();busy=true;controls();notice(`${activeStore().name}から読み込み中…`);$('schedule-list').setAttribute('aria-busy','true');try{const data=await read();periods=data.periods||[];loaded=true;loadDay();notice('');}catch(e){notice(e.message,'error');if(!loaded){$('schedule-list').replaceChildren();const p=document.createElement('p');p.className='empty';p.textContent='「再読み込み」でGoogleの登録情報を取得してください。';$('schedule-list').append(p);}}finally{busy=false;$('schedule-list').setAttribute('aria-busy','false');controls();}}
 function draft(){
  const time=value=>({hours:Math.floor(Number(value)/60),minutes:Number(value)%60});
  if(!closed&&[...document.querySelectorAll('#intervals select')].some(s=>s.value===''))throw Error('時刻を選んでください。');
@@ -63,19 +68,21 @@ function draft(){
  return makePeriods($('date').value,closed,rows);
 }
 function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-text').textContent=displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
-async function apply(){const change=pending;if(!change||busy||!loaded||!native)return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){if(/保存結果|保存後の登録/.test(e.message)){loaded=false;$('day-state').textContent='要再読込';}notice(e.message,'error');}finally{busy=false;controls();}}
-const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=t=>parts.find(p=>p.type===t).value;$('date').value=`${part('year')}-${part('month')}-${part('day')}`;todayDate=$('date').value;viewMonth=todayDate.slice(0,7);loadDay();
-async function launch(){try{const response=await fetch('launch.json',{cache:'no-store'});if(!response.ok)throw Error();const {url}=await response.json();if(!/^https:\/\/script\.google\.com\/macros\/s\/AKfy[A-Za-z0-9_-]+\/exec$/.test(url||''))throw Error();location.replace(url);}catch{notice('管理画面の公開情報を読み込めませんでした。再読み込みしてください。','error');}}
-$('connect').onclick=launch;
-if(native){refresh();}else{notice('管理画面を開きます…');launch();}
-$('date').onchange=()=>{if($('date').value)editDate($('date').value);};$('prev-month').onclick=()=>changeMonth(-1);$('next-month').onclick=()=>changeMonth(1);$('today').onclick=()=>editDate(todayDate);$('open-day').onclick=()=>mode(false);$('closed-day').onclick=()=>mode(true);$('add-interval').onclick=()=>addRow();$('refresh').onclick=refresh;$('save').onclick=()=>confirmChange(false);$('delete').onclick=()=>confirmChange(true);$('cancel-confirm').onclick=()=>{$('confirm-dialog').close();pending=null;};$('confirm-dialog').addEventListener('cancel',()=>{pending=null;});$('apply-confirm').onclick=apply;
+async function apply(){const change=pending;if(!change||busy||!loaded||!backendReady())return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){if(/保存結果|保存後の登録/.test(e.message)){loaded=false;$('day-state').textContent='要再読込';}notice(e.message,'error');}finally{busy=false;controls();}}
+function showPendingStore(){periods=[];loaded=false;loadDay();const store=activeStore();notice(store.status==='pending-api'?`${store.name}はGBP API承認待ちです。承認後、このタブからそのまま管理できます。`:`${store.name}にはまだ接続されていません。`);}
+function launch(storeId){const url=launchUrlForStore(storeId);if(!url){showPendingStore();return false;}location.replace(url);return true;}
+function selectStore(storeId){if(!Object.hasOwn(STORES,storeId)||storeId===activeStoreId)return;activeStoreId=storeId;updateStoreTabs();if(!native){launch(storeId);return;}if(storeId!==backendStoreId){const url=launchUrlForStore(storeId);if(url)location.replace(url);else showPendingStore();return;}refresh();}
+const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=t=>parts.find(p=>p.type===t).value;$('date').value=`${part('year')}-${part('month')}-${part('day')}`;todayDate=$('date').value;viewMonth=todayDate.slice(0,7);updateStoreTabs();loadDay();
+$('connect').onclick=()=>launch(activeStoreId);
+if(native){if(activeStoreId===backendStoreId)refresh();else if(launchUrlForStore(activeStoreId))location.replace(launchUrlForStore(activeStoreId));else showPendingStore();}else{notice('管理画面を開きます…');launch(activeStoreId);}
+$('date').onchange=()=>{if($('date').value)editDate($('date').value);};$('prev-month').onclick=()=>changeMonth(-1);$('next-month').onclick=()=>changeMonth(1);$('today').onclick=()=>editDate(todayDate);$('open-day').onclick=()=>mode(false);$('closed-day').onclick=()=>mode(true);$('add-interval').onclick=()=>addRow();$('refresh').onclick=refresh;$('save').onclick=()=>confirmChange(false);$('delete').onclick=()=>confirmChange(true);$('cancel-confirm').onclick=()=>{$('confirm-dialog').close();pending=null;};$('confirm-dialog').addEventListener('cancel',()=>{pending=null;});$('apply-confirm').onclick=apply;for(const button of document.querySelectorAll('.store-tab'))button.onclick=()=>selectStore(button.dataset.store);
 
-// Agent navigation uses the same selected date and editor as the visible UI.
+// Agent navigation uses the same selected store, date and editor as the visible UI.
 if(document.modelContext?.registerTool){
   const lifecycle=new AbortController();
   const register=tool=>{try{Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};
-  register({name:'select_special_hours_date',title:'営業時間の日付を選択',description:'編集する日付を選び、その日の現在の特別営業時間を表示する。Googleへの保存は行わない。',inputSchema:{type:'object',properties:{date:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'}},required:['date'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(busy||$('confirm-dialog').open)throw Error('処理中です。');parseDate(input?.date);editDate(input.date);return {date:input.date,loaded,periods:rowsForDay()};}});
-  register({name:'read_special_hours',title:'特別営業時間を確認',description:'接続済みのGoogleから読み込んだ特別営業時間を返す。再読み込みや保存は行わない。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute(){if(!loaded)throw Error('Googleに接続し、営業時間を読み込んでください。');return {selectedDate:$('date').value,periods:structuredClone(periods)};}});
+  register({name:'select_special_hours_date',title:'営業時間の日付を選択',description:'編集する日付を選び、その日の現在の特別営業時間を表示する。Googleへの保存は行わない。',inputSchema:{type:'object',properties:{date:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'}},required:['date'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(busy||$('confirm-dialog').open)throw Error('処理中です。');parseDate(input?.date);editDate(input.date);return {store:activeStoreId,date:input.date,loaded,periods:rowsForDay()};}});
+  register({name:'read_special_hours',title:'特別営業時間を確認',description:'選択中の店舗について、接続済みのGoogleから読み込んだ特別営業時間を返す。再読み込みや保存は行わない。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute(){if(!loaded)throw Error('Googleに接続し、営業時間を読み込んでください。');return {store:activeStoreId,selectedDate:$('date').value,periods:structuredClone(periods)};}});
   window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
 }
 
