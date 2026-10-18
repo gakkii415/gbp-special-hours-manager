@@ -33,3 +33,17 @@ document.querySelector('#verify').onclick=()=>{
  const output={status:issues.length?'FAIL':'PASS',issues,viewport:[win.innerWidth,win.innerHeight],saveTop:a.top,inputBottom:visibleInputs.length?Math.max(...visibleInputs.map(el=>rect(el).bottom)):null,tabSize:[t.width,t.height],store:d.querySelector('[data-store][aria-selected="true"]').dataset.store};
  document.querySelector('#results').textContent=JSON.stringify(output,null,2);
 };
+
+// Exercise the actual scrolling behavior, including the save button's reachability.
+document.querySelector('#verify-scroll').onclick=async()=>{
+ const d=frame.contentDocument,w=frame.contentWindow,main=d.querySelector('main'),tabs=d.querySelector('.store-tabs');
+ const rect=el=>el.getBoundingClientRect(),before=rect(tabs),previous=main.scrollTop;
+ main.scrollTop=main.scrollHeight;
+ await new Promise(resolve=>w.requestAnimationFrame(resolve));
+ const after=rect(tabs),save=rect(d.querySelector('#save')),pane=rect(main),issues=[];
+ if(d.documentElement.scrollHeight>w.innerHeight+1||w.scrollY!==0)issues.push('ページ全体がスクロールする');
+ if(Math.abs(after.top-before.top)>1||Math.abs(after.bottom-w.innerHeight)>1)issues.push('下部タブが動く');
+ if(save.bottom>pane.bottom+1||save.top<pane.top-1||save.bottom>after.top+1)issues.push('保存ボタンまで表示できない');
+ document.querySelector('#results').textContent=JSON.stringify({status:issues.length?'FAIL':'PASS',issues,viewport:[w.innerWidth,w.innerHeight],contentScroll:main.scrollTop,pageScroll:w.scrollY,tabBefore:before.top,tabAfter:after.top,tabBottom:after.bottom,saveBottom:save.bottom},null,2);
+ main.scrollTop=previous;
+};
