@@ -1,5 +1,5 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=15';
-import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=15';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=16';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=16';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
 let viewMonth='',todayDate='',readGeneration=0,saving=false,initializing=false;
@@ -10,7 +10,7 @@ function activeStore(){return getStore(activeStoreId);}
 function backendReady(){return native&&(backendStoreId===DEFAULT_STORE_ID||activeStoreId===backendStoreId);}
 function notice(text,kind='info'){$('notice').textContent=text;$('notice').hidden=!text;$('notice').dataset.kind=kind;}
 function updateStoreTabs(){for(const button of document.querySelectorAll('.store-tab'))button.setAttribute('aria-selected',String(button.dataset.store===activeStoreId));document.title=`特別営業時間 | ${activeStore().name}`;}
-function controls(){for(const tab of document.querySelectorAll('.store-tab'))tab.disabled=saving||initializing;const ready=backendReady()&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!backendReady()||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day,.month-nav button').forEach(el=>{if(!['save','delete'].includes(el.id))el.disabled=busy||!backendReady();});}
+function controls(){for(const tab of document.querySelectorAll('.store-tab'))tab.disabled=saving||initializing;const ready=backendReady()&&loaded&&!busy;$('save').disabled=!ready;$('delete').disabled=!ready||!periods.some(p=>dateKey(p.startDate)===$('date').value);$('refresh').disabled=!backendReady()||busy;$('connect').hidden=native;document.querySelectorAll('.editor input,.editor select,.editor button,.schedule-day,.month-nav button').forEach(el=>{if(!['save','delete'].includes(el.id)&&!el.classList.contains('store-tab'))el.disabled=busy||!backendReady();});}
 function rpcError(value,operation){
  const message=String(value?.message||'').replace(/^(?:Error:\s*)+/,'');
  if(/Google API HTTP (401|403)/.test(message))return Error('Googleの認証を確認して、再読み込みしてください。');
@@ -36,7 +36,7 @@ function addRow(period){
   block.append(select);times.append(block);
  }
  const remove=document.createElement('button');remove.className='remove-interval';remove.textContent='×';remove.setAttribute('aria-label','この時間帯を削除');remove.onclick=()=>{row.remove();controls();};times.append(remove);row.append(times);
- const next=document.createElement('label');next.className='next-day';const check=document.createElement('input');check.type='checkbox';check.className='end-day';check.checked=!!(period&&(period.closeTime?.hours===24||period.endDate&&dateKey(period.endDate)!==dateKey(period.startDate)));next.append(check,document.createTextNode('終了は翌日'));row.append(next);
+ row.dataset.nextDay=String(!!(period&&(period.closeTime?.hours===24||period.endDate&&dateKey(period.endDate)!==dateKey(period.startDate))));
  $('intervals').append(row);controls();
 }
 function loadDay(){
@@ -75,7 +75,7 @@ async function refresh(){
 function draft(){
  const time=value=>({hours:Math.floor(Number(value)/60),minutes:Number(value)%60});
  if(!closed&&[...document.querySelectorAll('#intervals select')].some(s=>s.value===''))throw Error('時刻を選んでください。');
- const rows=[...$('intervals').children].map(row=>({openTime:time(row.querySelector('.open-time').value),closeTime:time(row.querySelector('.close-time').value),nextDay:row.querySelector('.end-day').checked}));
+ const rows=[...$('intervals').children].map(row=>({openTime:time(row.querySelector('.open-time').value),closeTime:time(row.querySelector('.close-time').value),nextDay:row.dataset.nextDay==='true'}));
  return makePeriods($('date').value,closed,rows);
 }
 function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={store:activeStoreId,date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-text').textContent=activeStore().name+'\n'+displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
