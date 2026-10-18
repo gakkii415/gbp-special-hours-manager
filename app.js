@@ -1,10 +1,11 @@
 import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe} from './hours.js';
-import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore} from './stores.js';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
-let viewMonth='',todayDate='',activeStoreId=storeIdFromSearch(location.search);
+let viewMonth='',todayDate='';
 const native=!!window.google?.script?.run;
 const backendStoreId=native&&(window.__GBP_BACKEND_STORE_ID__||DEFAULT_STORE_ID);
+let activeStoreId=initialStoreId(location.search,backendStoreId||'');
 function activeStore(){return getStore(activeStoreId);}
 function backendReady(){return native&&activeStoreId===backendStoreId;}
 function notice(text,kind='info'){$('notice').textContent=text;$('notice').hidden=!text;$('notice').dataset.kind=kind;}
@@ -71,7 +72,7 @@ function confirmChange(remove){try{const date=$('date').value;parseDate(date);co
 async function apply(){const change=pending;if(!change||busy||!loaded||!backendReady())return;$('confirm-dialog').close();pending=null;busy=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',{date:change.date,replacements:change.replacements,baseline:change.baseline});periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){if(/保存結果|保存後の登録/.test(e.message)){loaded=false;$('day-state').textContent='要再読込';}notice(e.message,'error');}finally{busy=false;controls();}}
 function showPendingStore(){periods=[];loaded=false;loadDay();const store=activeStore();notice(store.status==='pending-api'?`${store.name}はGBP API承認待ちです。承認後、このタブからそのまま管理できます。`:`${store.name}にはまだ接続されていません。`);}
 function launch(storeId){const url=launchUrlForStore(storeId);if(!url){showPendingStore();return false;}location.replace(url);return true;}
-function selectStore(storeId){if(!Object.hasOwn(STORES,storeId)||storeId===activeStoreId)return;activeStoreId=storeId;updateStoreTabs();if(!native){launch(storeId);return;}if(storeId!==backendStoreId){const url=launchUrlForStore(storeId);if(url)location.replace(url);else showPendingStore();return;}refresh();}
+function selectStore(storeId){if(!Object.hasOwn(STORES,storeId)||storeId===activeStoreId)return;activeStoreId=storeId;updateStoreTabs();if(!native){launch(storeId);return;}if(storeId!==backendStoreId){const url=launchUrlForStore(storeId);if(url)window.open(url,'_top');else showPendingStore();return;}refresh();}
 const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=t=>parts.find(p=>p.type===t).value;$('date').value=`${part('year')}-${part('month')}-${part('day')}`;todayDate=$('date').value;viewMonth=todayDate.slice(0,7);updateStoreTabs();loadDay();
 $('connect').onclick=()=>launch(activeStoreId);
 if(native){if(activeStoreId===backendStoreId)refresh();else if(launchUrlForStore(activeStoreId))location.replace(launchUrlForStore(activeStoreId));else showPendingStore();}else{notice('管理画面を開きます…');launch(activeStoreId);}
