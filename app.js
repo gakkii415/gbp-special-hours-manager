@@ -1,5 +1,5 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=19';
-import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=19';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=20';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=20';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
 let viewMonth='',todayDate='',readGeneration=0,saving=false,initializing=false;
@@ -39,7 +39,7 @@ function fetchStore(store,force=false){
 function prefetchStores(store){if(backendStoreId===DEFAULT_STORE_ID)for(const id of Object.keys(STORES))if(id!==store)fetchStore(id).catch(()=>{});}
 function showStoreSnapshot(data){periods=structuredClone(data.periods);loaded=true;loadDay();notice('');$('schedule-list').setAttribute('aria-busy','false');}
 function rowsForDay(){return periods.filter(p=>dateKey(p.startDate)===$('date').value);}
-function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;}
+function mode(value){closed=value;$('open-day').setAttribute('aria-pressed',String(!closed));$('closed-day').setAttribute('aria-pressed',String(closed));$('intervals').hidden=closed;$('add-interval').hidden=closed;document.querySelector('.editor-tools').hidden=closed;}
 function picker(label,value,options){const select=document.createElement('select');select.setAttribute('aria-label',label);for(const [v,text] of options){const opt=new Option(text,String(v));select.add(opt);}select.value=String(value);if(select.selectedIndex<0)select.selectedIndex=-1;return select;}
 function addRow(period){
  const index=$('intervals').children.length+1,row=document.createElement('div');row.className='interval';
