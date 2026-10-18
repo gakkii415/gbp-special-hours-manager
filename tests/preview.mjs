@@ -3,7 +3,7 @@ const frame=document.querySelector('iframe');
 const base=new URL('../',location.href).href;
 const adapter=()=>{
  const database={tattoo:[],spa:[]};
- const report=(name,store)=>parent.postMessage({fixture:true,name,store},location.origin);
+ const report=(name,store)=>parent.postMessage({fixture:true,name,store},new URL(document.baseURI).origin);
  function runner(ok,fail){return {
   withSuccessHandler(fn){return runner(fn,fail);},withFailureHandler(fn){return runner(ok,fn);},
   getSpecialHours({store}){report('read',store);setTimeout(()=>ok({store,periods:structuredClone(database[store])}),store==='spa'?450:100);},
