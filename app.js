@@ -1,5 +1,5 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=16';
-import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=16';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=17';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=17';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
 let viewMonth='',todayDate='',readGeneration=0,saving=false,initializing=false;
