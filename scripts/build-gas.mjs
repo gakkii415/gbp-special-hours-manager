@@ -15,7 +15,7 @@ new vm.Script(scriptSource,{filename:'SpecialHoursUI.html'});
 const script='<script>\n'+scriptSource+'\n</script>';
 let html=read('index.html')
   .replace('<link rel="stylesheet" href="style.css">',()=>'<style>'+read('style.css')+'</style>')
-  .replace('<script type="module" src="app.js"></script>','')
+  .replace(/<script type="module" src="app\.js(?:\?v=\d+)?"><\/script>/,'')
   .replace('</body>',()=>script+'\n</body>');
 if(html.includes('</script>\n</script>'))throw Error('Unexpected script content');
 fs.mkdirSync(target,{recursive:true});fs.writeFileSync(path.join(target,'SpecialHoursUI.html'),html);
