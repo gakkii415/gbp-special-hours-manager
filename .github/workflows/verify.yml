@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           if [ "$GITHUB_REF_NAME" = "main" ]; then
-            BASE="$(git rev-parse HEAD^)"
+            BASE="$(python3 .github/task-base.py)"
           else
             BASE="$(git merge-base origin/main HEAD)"
           fi
