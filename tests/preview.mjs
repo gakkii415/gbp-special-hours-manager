@@ -12,7 +12,9 @@ const adapter=()=>{
  window.google={script:{run:runner()}};
  window.__GBP_BACKEND_STORE_ID__='tattoo';
 };
-let html=await fetch(new URL('index.html',base),{cache:'no-store'}).then(r=>r.text());
+const revision=Date.now();
+let html=await fetch(new URL('index.html?preview='+revision,base),{cache:'no-store'}).then(r=>r.text());
+html=html.replace('href="style.css"','href="style.css?preview='+revision+'"').replace(/src="app\.js\?v=(\d+)"/,'src="app.js?v=$1&preview='+revision+'"');
 html=html.replace('<head>','<head><base href="'+base+'"><script>('+adapter.toString()+')();<\/script>');
 frame.srcdoc=html;
 const counts={};
