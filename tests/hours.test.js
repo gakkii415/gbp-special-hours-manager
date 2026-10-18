@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {makePeriods,replaceDay,nextDate,signature,parseDate,weeklyClosedDays} from '../hours.js';
+import {makePeriods,replaceDay,nextDate,signature,parseDate,weeklyClosedDays,clock,timeOptions} from '../hours.js';
 const row=(oh,om,ch,cm,nextDay=false)=>({openTime:{hours:oh,minutes:om},closeTime:{hours:ch,minutes:cm},nextDay});
 test('00/30以外と無効な日付を拒否',()=>{assert.throws(()=>makePeriods('2026-10-01',false,[row(11,15,20,0)]));assert.throws(()=>parseDate('2026-02-30'));});
 test('夜をまたぐ時間と年末',()=>{const ps=makePeriods('2026-12-31',false,[row(21,0,2,30,true)]);assert.deepEqual(ps[0].endDate,{year:2027,month:1,day:1});assert.throws(()=>makePeriods('2026-10-01',false,[row(11,0,11,0,true)]));assert.throws(()=>makePeriods('2026-10-01',false,[row(20,0,12,0,true)]));});
@@ -9,3 +9,5 @@ test('複数時間帯・隣日との重複',()=>{assert.throws(()=>replaceDay([]
 test('Googleの省略値・並び順に影響されない変更検知',()=>{const p=makePeriods('2026-10-01',false,[row(11,0,20,0)]);const omitted=structuredClone(p);delete omitted[0].openTime.minutes;delete omitted[0].closed;assert.equal(signature(p),signature(omitted));assert.deepEqual(nextDate('2028-02-28'),{year:2028,month:2,day:29});});
 test('定休日は通常営業時間から算出し、未設定は休業と判定しない',()=>{assert.equal(weeklyClosedDays([]),null);assert.deepEqual(weeklyClosedDays([{openDay:'MONDAY',closeDay:'MONDAY',openTime:{hours:11},closeTime:{hours:20}}]),['SUNDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY']);});
 test('日またぎの通常営業は翌日の営業も含み、終了ちょうどの曜日は含まない',()=>{assert.deepEqual(weeklyClosedDays([{openDay:'SATURDAY',closeDay:'SUNDAY',openTime:{hours:21},closeTime:{hours:2}}]),['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY']);assert.deepEqual(weeklyClosedDays([{openDay:'SATURDAY',closeDay:'SUNDAY',openTime:{hours:21},closeTime:{hours:0}}]),['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY']);});
+
+test("時刻候補は24時間表記で10:00から22:00まで30分刻み",()=>{const options=timeOptions();assert.equal(options.length,25);assert.deepEqual(options[0],[600,"10:00"]);assert.deepEqual(options.at(-1),[1320,"22:00"]);options.forEach(([v,label],i)=>{assert.equal(v,600+i*30);assert.match(label,/^\d{2}:(00|30)$/);});assert.equal(clock({hours:0,minutes:30}),"00:30");});
