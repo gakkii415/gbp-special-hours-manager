@@ -1,5 +1,5 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=17';
-import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=17';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=18';
+import {DEFAULT_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=18';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
 let viewMonth='',todayDate='',readGeneration=0,saving=false,initializing=false;
@@ -78,7 +78,7 @@ function draft(){
  const rows=[...$('intervals').children].map(row=>({openTime:time(row.querySelector('.open-time').value),closeTime:time(row.querySelector('.close-time').value),nextDay:row.dataset.nextDay==='true'}));
  return makePeriods($('date').value,closed,rows);
 }
-function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={store:activeStoreId,date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-text').textContent=activeStore().name+'\n'+displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
+function confirmChange(remove){try{const date=$('date').value;parseDate(date);const replacements=remove?[]:draft();replaceDay(periods,date,replacements);pending={store:activeStoreId,date,replacements,baseline:signature(periods)};$('confirm-title').textContent=remove?'特別営業時間を削除しますか？':'この内容で保存しますか？';$('confirm-logo').src=document.querySelector('.store-tab[data-store="'+activeStoreId+'"] img').src;$('confirm-store-name').textContent=activeStore().name;$('confirm-text').textContent=displayDate(date)+'\n'+(remove?'通常営業時間に戻ります。':replacements.map(describe).join('\n'));$('confirm-dialog').showModal();}catch(e){notice(e.message,'error');}}
 async function apply(){const change=pending;if(!change||change.store!==activeStoreId||busy||!loaded||!backendReady())return;$('confirm-dialog').close();pending=null;busy=true;saving=true;controls();notice('Googleに保存中…');try{const verified=await rpc('saveSpecialHours',change);if(verified.store!==change.store)throw Error('保存結果を確認できません。再読み込みしてください。');periods=verified.periods||[];loadDay();notice('保存しました。','success');}catch(e){if(/保存結果|保存後の登録/.test(e.message)){loaded=false;$('day-state').textContent='要再読込';}notice(e.message,'error');}finally{busy=false;saving=false;controls();}}
 function showPendingStore(){periods=[];loaded=false;loadDay();const store=activeStore();notice(store.status==='pending-api'?`${store.name}はGBP API承認待ちです。承認後、このタブからそのまま管理できます。`:`${store.name}にはまだ接続されていません。`);}
 function launch(storeId){const url=launchUrlForStore(storeId);if(!url){showPendingStore();return false;}location.replace(url);return true;}
