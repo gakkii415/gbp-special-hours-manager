@@ -88,6 +88,8 @@ dialog p { white-space: pre-line; margin-bottom: 18px; line-height: 1.6; }
 .store-tab[data-store="spa"] .store-logo img { width: 140px; height: 78px; max-width: none; transform: translateY(-4px); object-fit: contain; }
 .store-label { position: relative; line-height: 20px; white-space: nowrap; }
 .store-label::after { content: "✓"; position: absolute; left: calc(100% + 6px); font-size: 12px; visibility: hidden; }
+.store-tab[aria-selected="false"] .store-logo,
+.store-tab[aria-selected="false"] .store-label { opacity: .35; }
 .store-tab[aria-selected="true"] { color: var(--ink); font-weight: 700; }
 .store-tab[aria-selected="true"]::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--ink); }
 .store-tab[aria-selected="true"] .store-label::after { visibility: visible; }
