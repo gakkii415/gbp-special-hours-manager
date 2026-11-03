@@ -6,7 +6,7 @@ const adapter=()=>{
  const report=(name,store)=>parent.postMessage({fixture:true,name,store},new URL(document.baseURI).origin);
  function runner(ok,fail){return {
   withSuccessHandler(fn){return runner(fn,fail);},withFailureHandler(fn){return runner(ok,fn);},
-  getSpecialHours({store,startMonth,endMonth}){report('read',store);setTimeout(()=>ok({store,startMonth,endMonth,periods:structuredClone(database[store].filter(p=>{const m=String(p.startDate.year)+'-'+String(p.startDate.month).padStart(2,'0');return m>=startMonth&&m<=endMonth;}))}),store==='spa'?450:100);},
+  getSpecialHours({store}){report('read',store);setTimeout(()=>ok({store,periods:structuredClone(database[store])}),store==='spa'?450:100);},
   saveSpecialHours(change){report('save',change.store);setTimeout(()=>{database[change.store]=change.replacements;ok({...change,store:change.store,periods:structuredClone(database[change.store])});},100);}
  };}
  window.google={script:{run:runner()}};
