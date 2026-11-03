@@ -1,5 +1,5 @@
-import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=23';
-import {DEFAULT_STORE_ID,ENTRY_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=23';
+import {dateKey,parseDate,nextDate,clock,signature,makePeriods,replaceDay,describe,timeOptions} from './hours.js?v=24';
+import {DEFAULT_STORE_ID,ENTRY_STORE_ID,STORES,getStore,storeIdFromSearch,launchUrlForStore,initialStoreId} from './stores.js?v=24';
 const $=id=>document.getElementById(id);
 let periods=[],loaded=false,busy=false,closed=false,pending=null;
 let viewMonth='',todayDate='',readGeneration=0,saving=false,initializing=false;
@@ -115,9 +115,10 @@ async function refresh(force=true){
   const data=await fetchStore(store,month,force);
   if(generation!==readGeneration||store!==activeStoreId)return;
   if(!data)throw Error('営業時間を取得できません。再読み込みしてください。');
-  if(cached){periods=structuredClone(data.periods);renderList();}else showStoreSnapshot(data);
+  // Background completion must not redraw the visible calendar or disturb focus.
+  if(cached){periods=structuredClone(data.periods);}else showStoreSnapshot(data);
  }catch(e){
-  if(generation!==readGeneration)return;
+  if(generation!==readGeneration||cached)return;
   notice(e.message,'error');renderList();
  }finally{
   if(generation===readGeneration){

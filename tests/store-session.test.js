@@ -93,3 +93,25 @@ test('保存応答の期間が不正なら結果不明として再読込まで�
 });
 
 test('対応する最終年の12月でもキャッシュ処理が終了する',()=>{const h=harness();h.c.cacheRange('spa',{store:'spa',startMonth:'9999-12',endMonth:'9999-12',periods:[]},'9999-12','9999-12');assert.equal(h.run("storeSnapshots.get('spa').has('9999-12')"),true);});
+
+test('表示外の月の先読みは通知や再描画をせず操作を妨げない',async()=>{
+ const h=await ready();h.c.changeMonth(1);
+ assert.equal(h.requests[2].arg.startMonth,'2027-02');
+ assert.equal(h.run('busy'),false);assert.equal(h.run('loaded'),true);assert.equal(h.element('notice').hidden,true);
+ let redraws=0;h.c.renderList=()=>redraws++;
+ h.c.notice('入力中の状態');h.reply(2);await tick();
+ assert.equal(h.element('notice').textContent,'入力中の状態');assert.equal(redraws,0);
+ assert.equal(h.run('viewMonth'),'2026-12');assert.equal(h.run('busy'),false);
+});
+test('先読み失敗は隠し、その月を実際に開いて取得に失敗した時だけ通知する',async()=>{
+ const h=await ready();h.c.changeMonth(1);let redraws=0;h.c.renderList=()=>redraws++;
+ h.requests[2].reject(Error('先読み失敗'));await tick();
+ assert.equal(h.element('notice').hidden,true);assert.equal(redraws,0);assert.equal(h.run('loaded'),true);assert.equal(h.run('busy'),false);
+ h.c.editDate('2027-02-01');assert.equal(h.run('loaded'),false);assert.equal(h.run('busy'),true);
+ h.requests.at(-1).reject(Error('表示月の取得失敗'));await tick();
+ assert.equal(h.element('notice').textContent,'表示月の取得失敗');assert.equal(h.element('notice').dataset.kind,'error');
+});
+test('明示再読み込みの失敗は取得済みの月でも通知する',async()=>{
+ const h=await ready();h.c.refresh();h.requests[2].reject(Error('再取得失敗'));await tick();
+ assert.equal(h.element('notice').textContent,'再取得失敗');assert.equal(h.run('loaded'),false);
+});
