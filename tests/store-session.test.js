@@ -91,3 +91,5 @@ test('月の追加読込が保存中に終わっても保存ロックを解除�
 test('保存応答の期間が不正なら結果不明として再読込まで保存を止める',async()=>{
  const h=await ready();h.run("pending={store:'spa',date:'2026-11-04',startMonth:'2026-11',endMonth:'2026-11',baseline:'[]',replacements:[]};");h.c.apply();h.requests[2].resolve({store:'spa',periods:[]});await tick();assert.equal(h.run('loaded'),false);assert.equal(h.run("storeSnapshots.has('spa')"),false);
 });
+
+test('対応する最終年の12月でもキャッシュ処理が終了する',()=>{const h=harness();h.c.cacheRange('spa',{store:'spa',startMonth:'9999-12',endMonth:'9999-12',periods:[]},'9999-12','9999-12');assert.equal(h.run("storeSnapshots.get('spa').has('9999-12')"),true);});

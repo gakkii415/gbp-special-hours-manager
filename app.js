@@ -37,6 +37,7 @@ function cacheRange(store,data,startMonth,endMonth){
  const months=storeSnapshots.get(store)||new Map();
  for(let m=startMonth;m<=endMonth;m=monthOffset(m,1)){
   months.set(m,structuredClone(data.periods.filter(p=>dateKey(p.startDate).slice(0,7)===m)));
+  if(m===endMonth)break;
  }
  storeSnapshots.set(store,months);
 }
