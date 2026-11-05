@@ -16,7 +16,6 @@ function rpcError(value,operation){
  const message=String(value?.message||'').replace(/^(?:Error:\s*)+/,'');
  if(/Google API HTTP (401|403)/.test(message))return Error('Googleの認証を確認して、再読み込みしてください。');
  if(/Google API HTTP (429|500|502|503|504)/.test(message))return Error(operation==='saveSpecialHours'?'保存結果を確認できません。再読み込みして登録内容を確認してください。':'Googleが一時的に応答できません。少し待って再試行してください。');
- if(operation==='saveSpecialHours'&&/通信|タイムアウト|接続|ネットワーク/.test(message))return Error('保存結果を確認できません。再読み込みして登録内容を確認してください。');
  if(/^[^\n<>{}]{1,180}$/.test(message)&&/[ぁ-んァ-ヶ一-龯]/.test(message)&&!/https?:|Bearer|token|stack|Error:/i.test(message))return Error(message);
  return Error(operation==='saveSpecialHours'?'保存結果を確認できません。再読み込みして登録内容を確認してください。':'通信を確認して、再読み込みしてください。');
 }
